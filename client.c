@@ -59,5 +59,25 @@ int main(int argc, char *argv[]) {
 	}
 
 	printf("Sent data successfully to server \n");
+	receiveMessages(sockFd);
+	close(sockFd);
 	return 0;
+}
+
+int receiveMessages(int sockFd) {
+
+	int MSG_SIZES = 17;
+	int REPS = 10;
+	int i, k;
+	int msg_size = 32;
+	int returnVal = 0;
+	char * dummy_rec_data;
+
+	for (i = 0; i < MSG_SIZES; i++,msg_size*=2) {
+		dummy_rec_data = (char *) malloc(msg_size);
+		for (k = 0; k < REPS; k++) {
+			recv(sockFd, dummy_rec_data,msg_size, 0);
+			send(sockFd, dummy_rec_data, msg_size, 0);
+		}
+	}
 }

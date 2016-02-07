@@ -1,3 +1,10 @@
+/*
+ * server.c
+ *
+ *  Created on: Feb 6, 2016
+ *      Author: mns
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,6 +12,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+
+int sendMessages();
 
 int main(int argc, char *argv[]) {
 
@@ -53,11 +62,36 @@ int main(int argc, char *argv[]) {
 				printf("Connection with client ended \n");
 			} else {
 				printf("Received : %s\n", buff);
-}
+				sendMessages(ccsockFd);
+			}
 			close(ccsockFd);
 		}
 	} while (1);
 
 	/* Accept the connection from client */
 	return 0;
+}
+
+int sendMessages(int destFd) {
+	int MSG_SIZES = 17;
+	int REPS = 10;
+	int i, k;
+	int msg_size = 32;
+	int returnVal = 0;
+	char * dummy_rec_data, *dummy_send_data;
+
+	for (i = 0; i < MSG_SIZES; i++, msg_size *= 2) {
+		dummy_send_data = (char *) malloc(msg_size);
+		dummy_rec_data = (char *) malloc(msg_size);
+
+		memset(dummy_send_data, 'A', msg_size - 1);
+		dummy_send_data[msg_size - 1] = '\0';
+
+		for (k = 0; k < REPS; k++) {
+			send(destFd, dummy_send_data, msg_size, 0);
+			returnVal = recv(destFd, dummy_rec_data, msg_size, 0);
+			printf("Received from client %d on rep %d\n", msg_size, k);
+		}
+
+	}
 }

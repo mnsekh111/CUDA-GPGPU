@@ -18,13 +18,16 @@
 void init(double *u, double *pebbles, int n);
 void evolve(double *un, double *uc, double *uo, double *pebbles, int n,
 		double h, double dt, double t);
+void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
+		double h, double dt, double t);
 int tpdt(double *t, double dt, double end_time);
 void print_heatmap(char *filename, double *u, int n, double h);
 void init_pebbles(double *p, int pn, int n);
 
 void run_cpu(double *u, double *u0, double *u1, double *pebbles, int n,
 		double h, double end_time);
-
+void run_cpu9pt(double *u, double *u0, double *u1, double *pebbles, int n,
+		double h, double end_time);
 extern void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n,
 		double h, double end_time, int nthreads);
 
@@ -64,10 +67,26 @@ int main(int argc, char *argv[]) {
 	init(u_i0, pebs, npoints);
 	init(u_i1, pebs, npoints);
 
+	//5 point stencil
+	printf("Running 5 point stencil\n======================\n");
 	print_heatmap("lake_i.dat", u_i0, npoints, h);
 
 	gettimeofday(&cpu_start, NULL);
 	run_cpu(u_cpu, u_i0, u_i1, pebs, npoints, h, end_time);
+	gettimeofday(&cpu_end, NULL);
+
+	elapsed_cpu = ((cpu_end.tv_sec + cpu_end.tv_usec * 1e-6)
+			- (cpu_start.tv_sec + cpu_start.tv_usec * 1e-6));
+	printf("CPU took %f seconds\n", elapsed_cpu);
+
+	print_heatmap("lake_f.dat", u_cpu, npoints, h);
+
+	//9 point stencil
+	printf("Running 9 point stencil\n======================\n");
+	print_heatmap("lake_i9.dat", u_i0, npoints, h);
+
+	gettimeofday(&cpu_start, NULL);
+	run_cpu9pt(u_cpu, u_i0, u_i1, pebs, npoints, h, end_time);
 	gettimeofday(&cpu_end, NULL);
 
 	elapsed_cpu = ((cpu_end.tv_sec + cpu_end.tv_usec * 1e-6)
@@ -81,7 +100,7 @@ int main(int argc, char *argv[]) {
 			- (gpu_start.tv_sec + gpu_start.tv_usec * 1e-6));
 	printf("GPU took %f seconds\n", elapsed_gpu);
 
-	print_heatmap("lake_f.dat", u_cpu, npoints, h);
+	print_heatmap("lake_f9.dat", u_cpu, npoints, h);
 
 	free(u_i0);
 	free(u_i1);
@@ -120,6 +139,34 @@ void run_cpu(double *u, double *u0, double *u1, double *pebbles, int n,
 	memcpy(u, un, sizeof(double) * n * n);
 }
 
+void run_cpu9pt(double *u, double *u0, double *u1, double *pebbles, int n,
+		double h, double end_time) {
+	double *un, *uc, *uo;
+	double t, dt;
+
+	un = (double*) malloc(sizeof(double) * n * n);
+	uc = (double*) malloc(sizeof(double) * n * n);
+	uo = (double*) malloc(sizeof(double) * n * n);
+
+	memcpy(uo, u0, sizeof(double) * n * n);
+	memcpy(uc, u1, sizeof(double) * n * n);
+
+	t = 0.;
+	dt = h / 2.;
+
+	while (1) {
+		evolve9pt(un, uc, uo, pebbles, n, h, dt, t);
+
+		memcpy(uo, uc, sizeof(double) * n * n);
+		memcpy(uc, un, sizeof(double) * n * n);
+
+		if (!tpdt(&t, dt, end_time))
+			break;
+	}
+
+	memcpy(u, un, sizeof(double) * n * n);
+}
+
 void init_pebbles(double *p, int pn, int n) {
 	int i, j, k, idx;
 	int sz;
@@ -134,6 +181,7 @@ void init_pebbles(double *p, int pn, int n) {
 		idx = j + i * n;
 		p[idx] = (double) sz;
 	}
+
 }
 
 double f(double p, double t) {
@@ -173,6 +221,36 @@ void evolve(double *un, double *uc, double *uo, double *pebbles, int n,
 						+ VSQR * (dt * dt)
 								* ((uc[idx - 1] + uc[idx + 1] + uc[idx + n]
 										+ uc[idx - n] - 4 * uc[idx]) / (h * h)
+										+ f(pebbles[idx], t));
+			}
+		}
+	}
+}
+
+/*
+ *Implementation of evolve9pt method that performs 9-point stencil under CPU.
+ */
+void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
+		double h, double dt, double t) {
+	int i, j, idx;
+
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			idx = j + i * n;
+
+			if (i == 0 || i == n - 1 || j == 0 || j == n - 1) {
+				un[idx] = 0.;
+			} else {
+				un[idx] = 2 * uc[idx] - uo[idx]
+						+ VSQR * (dt * dt)
+								* ((uc[idx - 1] + uc[idx + 1] + uc[idx - n]
+										+ uc[idx + n]
+										+ 0.25
+												* (uc[idx - n - 1]
+														+ uc[idx - n + 1]
+														+ uc[idx + n - 1]
+														+ uc[idx + n + 1])
+										- 5 * uc[idx]) / (h * h)
 										+ f(pebbles[idx], t));
 			}
 		}

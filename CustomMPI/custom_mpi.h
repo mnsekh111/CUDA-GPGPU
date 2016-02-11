@@ -10,16 +10,11 @@
  */
 
 typedef struct MPI_Status {
-	int MPI_SOURCE;
-	int MPI_TAG;
-	int MPI_ERROR;
-	MPI_Count count;
-	int cancelled;
-	int abi_slush_fund[2];
+	int mpi_status;
 
 } MPI_Status;
 
-typedef struct comm_env {
+typedef struct MPI_Comm {
 	int comm_size;
 	int comm_rank;
 	char ** processor_names;

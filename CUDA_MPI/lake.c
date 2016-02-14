@@ -504,28 +504,24 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 						RT = rec_right_border[i - 1];
 						LB = rec_down_border[j - 1];
 						RB = rec_cornor;
-					} else if (i == n - 1 || j == n - 1) {
-
-						if (i == n - 1) {
-							L = uc[idx - 1];
-							R = uc[idx + 1];
-							T = uc[idx - n];
-							B = rec_down_border[j];
-							LT = uc[idx - n - 1];
-							RT = uc[idx - n + 1];
-							LB = rec_down_border[j - 1];
-							RB = rec_down_border[j + 1];
-						} else if (j == n - 1) {
-							L = uc[idx - 1];
-							R = rec_right_border[i];
-							T = uc[idx - n];
-							B = uc[idx + n];
-							LT = uc[idx - n - 1];
-							RT = rec_right_border[i - 1];
-							LB = uc[idx + n - 1];
-							RB = rec_down_border[i + 1];
-						}
-
+					} else if (i == n - 1) {
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = rec_down_border[j];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = rec_down_border[j - 1];
+						RB = rec_down_border[j + 1];
+					} else if (j == n - 1) {
+						L = uc[idx - 1];
+						R = rec_right_border[i];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = rec_right_border[i - 1];
+						LB = uc[idx + n - 1];
+						RB = rec_right_border[i + 1];
 					} else {
 
 						L = uc[idx - 1];
@@ -550,35 +546,184 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 		}
 		break;
 	case 1:
+		for (i = 0; i < n; i++) {
+			for (j = 0; j < n; j++) {
+				idx = j + i * n;
 
+				if (i == 0 || j == n - 1) {
+					un[idx] = 0.;
+
+				} else {
+					if (i == n - 1 && j == 0) {
+						L = rec_left_border[i];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = rec_down_border[j];
+						LT = rec_left_border[i - 1];
+						RT = uc[idx - n + 1];
+						LB = rec_cornor;
+						RB = rec_down_border[j + 1];
+					} else if (i == n - 1) {
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = rec_down_border[j];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = rec_down_border[j - 1];
+						RB = rec_down_border[j + 1];
+					} else if (j == 0) {
+						L = rec_left_border[i];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = rec_left_border[i - 1];
+						RT = uc[idx - n + 1];
+						LB = rec_left_border[i + 1];
+						RB = uc[idx + n + 1];
+					} else {
+
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					}
+
+					un[idx] = 2 * uc[idx] - uo[idx]
+							+ VSQR * (dt * dt)
+									* ((L + R + T + B
+											+ 0.25 * (LT + RT + LB + RB)
+											- 5 * uc[idx]) / (h * h)
+											+ f(pebbles[idx], t));
+				}
+
+			}
+		}
 		break;
 	case 2:
+		for (i = 0; i < n; i++) {
+			for (j = 0; j < n; j++) {
+				idx = j + i * n;
+
+				if (i == n - 1 || j == 0) {
+					un[idx] = 0.;
+
+				} else {
+					if (i == 0 && j == n - 1) {
+
+						L = uc[idx - 1];
+						R = rec_right_border[i];
+						T = rec_top_border[j];
+						B = uc[idx + n];
+						LT = rec_top_border[j - 1];
+						RT = rec_cornor;
+						LB = uc[idx + n - 1];
+						RB = rec_right_border[i + 1];
+					} else if (i == 0) {
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = rec_top_border[j];
+						B = uc[idx + n];
+						LT = rec_top_border[j - 1];
+						RT = rec_top_border[j + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					} else if (j == n - 1) {
+						L = uc[idx - 1];
+						R = rec_right_border[i];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = rec_right_border[i - 1];
+						LB = uc[idx + n - 1];
+						RB = rec_right_border[i + 1];
+					} else {
+
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					}
+
+					un[idx] = 2 * uc[idx] - uo[idx]
+							+ VSQR * (dt * dt)
+									* ((L + R + T + B
+											+ 0.25 * (LT + RT + LB + RB)
+											- 5 * uc[idx]) / (h * h)
+											+ f(pebbles[idx], t));
+				}
+
+			}
+		}
 
 		break;
 	case 3:
-		break;
+		for (i = 0; i < n; i++) {
+			for (j = 0; j < n; j++) {
+				idx = j + i * n;
 
-	}
-	for (i = 0; i < n; i++) {
-		for (j = 0; j < n; j++) {
-			idx = j + i * n;
+				if (i == n - 1 || j == n - 1) {
+					un[idx] = 0.;
 
-			if (i == 0 || i == n - 1 || j == 0 || j == n - 1) {
-				un[idx] = 0.;
-			} else {
-				un[idx] = 2 * uc[idx] - uo[idx]
-						+ VSQR * (dt * dt)
-								* ((uc[idx - 1] + uc[idx + 1] + uc[idx - n]
-										+ uc[idx + n]
-										+ 0.25
-												* (uc[idx - n - 1]
-														+ uc[idx - n + 1]
-														+ uc[idx + n - 1]
-														+ uc[idx + n + 1])
-										- 5 * uc[idx]) / (h * h)
-										+ f(pebbles[idx], t));
+				} else {
+					if (i == 0 && j == 0) {
+						L = rec_left_border[i];
+						R = uc[idx + 1];
+						T = rec_top_border[j];
+						B = uc[idx + n];
+						LT = rec_cornor;
+						RT = rec_top_border[j + 1];
+						LB = rec_left_border[i + 1];
+						RB = uc[idx + n + 1];
+					} else if (i == 0) {
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = rec_top_border[j];
+						B = uc[idx + n];
+						LT = rec_top_border[j - 1];
+						RT = rec_top_border[j + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					} else if (j == 0) {
+						L = rec_left_border[i];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = rec_left_border[i - 1];
+						RT = uc[idx - n + 1];
+						LB = rec_left_border[i + 1];
+						RB = uc[idx + n + 1];
+					} else {
+
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					}
+
+					un[idx] = 2 * uc[idx] - uo[idx]
+							+ VSQR * (dt * dt)
+									* ((L + R + T + B
+											+ 0.25 * (LT + RT + LB + RB)
+											- 5 * uc[idx]) / (h * h)
+											+ f(pebbles[idx], t));
+				}
+
 			}
 		}
+		break;
 	}
 }
 

@@ -94,7 +94,6 @@ int main(int argc, char *argv[]) {
 		init(global_u_i0, global_pebs, npoints);
 		init(global_u_i1, global_pebs, npoints);
 
-
 		//print_array(global_u_i0,npoints);
 		arr_div(u_i0, global_u_i0, 0, npoints / 2, npoints);
 		arr_div(u_i1, global_u_i1, 0, npoints / 2, npoints);
@@ -131,6 +130,7 @@ int main(int argc, char *argv[]) {
 		arr_div(u_i1, global_u_i1, 0, 0, npoints);
 		arr_div(pebs, global_pebs, 0, 0, npoints);
 
+		//print_array(u_i0, npoints / 2);
 		print_heatmap("lake_i9.dat", u_i0, npoints, h);
 
 		gettimeofday(&gpu_start, NULL);
@@ -149,8 +149,10 @@ int main(int argc, char *argv[]) {
 		MPI_Recv(pebs, narea / totaltasks, MPI_DOUBLE, ROOT, DEFAULT_TAG,
 		MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-		if(taskId == 1)
-			print_array(u_i0,npoints/2);
+		//run_cpu9pt_mpi(u_gpu, u_i0, u_i1, pebs, npoints / 2, h, end_time);
+
+//		if(taskId == 1)
+//			print_array(u_i0,npoints/2);
 
 	}
 
@@ -204,16 +206,29 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 		double h, double end_time) {
 	double *un, *uc, *uo;
 	double t, dt;
-	double *right_border, *left_border, *top_border, *down_border;
+	double *send_right_border, *send_left_border, *send_top_border,
+			*send_down_border;
+	double *rec_right_border, *rec_left_border, *rec_top_border,
+				*rec_down_border;
+	double send_cornor;
+	double rec_cornor;
 
 	un = (double*) malloc(sizeof(double) * n * n);
 	uc = (double*) malloc(sizeof(double) * n * n);
 	uo = (double*) malloc(sizeof(double) * n * n);
 
-	right_border = (double*) malloc(sizeof(double) * n);
-	left_border = (double*) malloc(sizeof(double) * n);
-	top_border = (double*) malloc(sizeof(double) * n);
-	down_border = (double*) malloc(sizeof(double) * n);
+	send_right_border = (double*) malloc(sizeof(double) * n);
+	send_left_border = (double*) malloc(sizeof(double) * n);
+	send_top_border = (double*) malloc(sizeof(double) * n);
+	send_down_border = (double*) malloc(sizeof(double) * n);
+
+	rec_right_border = (double*) malloc(sizeof(double) * n);
+	rec_left_border = (double*) malloc(sizeof(double) * n);
+	rec_top_border = (double*) malloc(sizeof(double) * n);
+	rec_down_border = (double*) malloc(sizeof(double) * n);
+
+	MPI_Request reqs[3];
+	MPI_Status stats[3];
 
 	memcpy(uo, u0, sizeof(double) * n * n);
 	memcpy(uc, u1, sizeof(double) * n * n);
@@ -221,35 +236,60 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 	t = 0.;
 	dt = h / 2.;
 
-	double cornor;
+	int cnt = 1;
 	while (1) {
-		evolve9pt(un, uc, uo, pebbles, n, h, dt, t);
+
 		switch (taskId) {
 		case 0:
-			extract_along_down(uc, right_border, 0, n - 1, n);
-			extract_along_side(uc, down_border, n - 1, 0, n);
-			cornor = uc[(n - 1) * n + (n - 1)];
+
+			MPI_Irecv(rec_right_border,n, MPI_DOUBLE,1, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[0]);
+			MPI_Irecv(rec_down_border,n, MPI_DOUBLE,2, DEFAULT_TAG,
+						MPI_COMM_WORLD, &reqs[1]);
+			MPI_Irecv(&rec_cornor,1, MPI_DOUBLE,3, DEFAULT_TAG,
+						MPI_COMM_WORLD, &reqs[2]);
+
+			extract_along_down(uc, send_right_border, 0, n - 1, n);
+			extract_along_side(uc, send_down_border, n - 1, 0, n);
+			send_cornor = uc[(n - 1) * n + (n - 1)];
+
+			MPI_Send(send_right_border, n, MPI_DOUBLE, 1, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+			MPI_Send(send_down_border, n, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD);
 			break;
+
 		case 1:
-			extract_along_down(uc, left_border, 0, 0, n);
-			extract_along_side(uc, down_border, n - 1, 0,
-					n);
-			cornor = uc[(n - 1) * n + 0];
+			extract_along_down(uc, send_left_border, 0, 0, n);
+			extract_along_side(uc, send_down_border, n - 1, 0, n);
+			send_cornor = uc[(n - 1) * n + 0];
 			//print_array(uc, n);
 			break;
 		case 2:
-			extract_along_down(uc, right_border, 0, n - 1,
-					n);
-			extract_along_side(uc, top_border, 0, 0, n);
-			cornor = uc[0 + n - 1];
+			extract_along_down(uc, send_right_border, 0, n - 1, n);
+			extract_along_side(uc, send_top_border, 0, 0, n);
+			send_cornor = uc[0 + n - 1];
 			break;
 		case 3:
-			extract_along_down(uc, left_border, 0, 0, n);
-			extract_along_side(uc, top_border, 0, 0, n);
-			cornor = uc[0];
+			extract_along_down(uc, send_left_border, 0, 0, n);
+			extract_along_side(uc, send_top_border, 0, 0, n);
+			send_cornor = uc[0];
 			break;
 
 		}
+
+		MPI_Barrier(MPI_COMM_WORLD);
+
+//		if (cnt++ == 1)
+//			print_array(uo, n);
+//		evolve9pt(un, uc, uo, pebbles, n, h, dt, t);
+//		if (cnt++ == 2) {
+//			printf("\n-------\n");
+//			print_array(un, n);
+//		}
+
 		memcpy(uo, uc, sizeof(double) * n * n);
 		memcpy(uc, un, sizeof(double) * n * n);
 

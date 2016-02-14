@@ -209,7 +209,7 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 	double *send_right_border, *send_left_border, *send_top_border,
 			*send_down_border;
 	double *rec_right_border, *rec_left_border, *rec_top_border,
-				*rec_down_border;
+			*rec_down_border;
 	double send_cornor;
 	double rec_cornor;
 
@@ -237,17 +237,18 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 	dt = h / 2.;
 
 	int cnt = 1;
-	while (1) {
+	//Testing for 2 iterations
+	while (cnt++ < 2) {
 
 		switch (taskId) {
 		case 0:
 
-			MPI_Irecv(rec_right_border,n, MPI_DOUBLE,1, DEFAULT_TAG,
+			MPI_Irecv(rec_right_border, n, MPI_DOUBLE, 1, DEFAULT_TAG,
 			MPI_COMM_WORLD, &reqs[0]);
-			MPI_Irecv(rec_down_border,n, MPI_DOUBLE,2, DEFAULT_TAG,
-						MPI_COMM_WORLD, &reqs[1]);
-			MPI_Irecv(&rec_cornor,1, MPI_DOUBLE,3, DEFAULT_TAG,
-						MPI_COMM_WORLD, &reqs[2]);
+			MPI_Irecv(rec_down_border, n, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[1]);
+			MPI_Irecv(&rec_cornor, 1, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[2]);
 
 			extract_along_down(uc, send_right_border, 0, n - 1, n);
 			extract_along_side(uc, send_down_border, n - 1, 0, n);
@@ -262,24 +263,71 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 			break;
 
 		case 1:
+
+			MPI_Irecv(rec_left_border, n, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[0]);
+			MPI_Irecv(rec_down_border, n, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[1]);
+			MPI_Irecv(&rec_cornor, 1, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[2]);
+
 			extract_along_down(uc, send_left_border, 0, 0, n);
 			extract_along_side(uc, send_down_border, n - 1, 0, n);
 			send_cornor = uc[(n - 1) * n + 0];
+
+			MPI_Send(send_left_border, n, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+			MPI_Send(send_down_border, n, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+
 			//print_array(uc, n);
 			break;
 		case 2:
+
+			MPI_Irecv(rec_right_border, n, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[0]);
+			MPI_Irecv(rec_top_border, n, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[1]);
+			MPI_Irecv(&rec_cornor, 1, MPI_DOUBLE, 1, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[2]);
+
 			extract_along_down(uc, send_right_border, 0, n - 1, n);
 			extract_along_side(uc, send_top_border, 0, 0, n);
 			send_cornor = uc[0 + n - 1];
+
+			MPI_Send(send_right_border, n, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+			MPI_Send(send_top_border, n, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 1, DEFAULT_TAG,
+			MPI_COMM_WORLD);
 			break;
 		case 3:
+
+			MPI_Irecv(rec_left_border, n, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[0]);
+			MPI_Irecv(rec_top_border, n, MPI_DOUBLE, 1, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[1]);
+			MPI_Irecv(&rec_cornor, 1, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD, &reqs[2]);
+
 			extract_along_down(uc, send_left_border, 0, 0, n);
 			extract_along_side(uc, send_top_border, 0, 0, n);
 			send_cornor = uc[0];
+
+			MPI_Send(send_left_border, n, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+			MPI_Send(send_top_border, n, MPI_DOUBLE, 1, DEFAULT_TAG,
+			MPI_COMM_WORLD);
+			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD);
 			break;
 
 		}
 
+		MPI_Waitall(3, reqs, stats);
 		MPI_Barrier(MPI_COMM_WORLD);
 
 //		if (cnt++ == 1)

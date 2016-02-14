@@ -31,7 +31,7 @@ void arr_attach_right_bottom(int *u, int * v, int* v1, int cor, int *w, int n) {
 	int index = 0;
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < n; j++) {
-			w[i * (n + 1) + j] = u[i*n + j];
+			w[i * (n + 1) + j] = u[i * n + j];
 		}
 	}
 
@@ -42,10 +42,76 @@ void arr_attach_right_bottom(int *u, int * v, int* v1, int cor, int *w, int n) {
 
 	//right
 	for (i = 0; i < n; i++) {
-		w[i * (n + 1) + j] = v[i];
+		w[i * (n + 1) + n] = v[i];
 	}
 
-	w[n*(n+1)+(n+1)] = cor;
+	w[n * (n + 1) + (n + 1)] = cor;
+}
+
+void arr_attach_left_bottom(int *u, int * v, int* v1, int cor, int *w, int n) {
+	int i, j;
+	int index = 0;
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			w[i * (n + 1) + (j + 1)] = u[i * n + j];
+		}
+	}
+
+	//bottom
+	for (j = 0; j < n; j++) {
+		w[n * (n + 1) + (j + 1)] = v[j];
+	}
+
+	//left
+	for (i = 0; i < n; i++) {
+		w[i * (n + 1) + 0] = v[i];
+	}
+
+	w[n * (n + 1) + (0)] = cor;
+}
+
+void arr_attach_right_top(int *u, int * v, int* v1, int cor, int *w, int n) {
+	int i, j;
+	int index = 0;
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			w[(i + 1) * (n + 1) + j] = u[i * n + j];
+		}
+	}
+
+	//top
+	for (j = 0; j < n; j++) {
+		w[0 * (n + 1) + j] = v[j];
+	}
+
+	//right
+	for (i = 0; i < n; i++) {
+		w[(i + 1) * (n + 1) + n] = v[i];
+	}
+
+	w[0 * (n + 1) + (n + 1)] = cor;
+}
+
+void arr_attach_left_top(int *u, int * v, int* v1, int cor, int *w, int n) {
+	int i, j;
+	int index = 0;
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			w[(i+1) * (n + 1) + (j + 1)] = u[i * n + j];
+		}
+	}
+
+	//top
+	for (j = 0; j < n; j++) {
+		w[0 * (n + 1) + (j + 1)] = v[j];
+	}
+
+	//left
+	for (i = 0; i < n; i++) {
+		w[(i+1) * (n + 1) + 0] = v[i];
+	}
+
+	w[0 * (n + 1) + (0)] = cor;
 }
 
 void print_array(int *u, int n) {
@@ -131,11 +197,25 @@ int main(int argc, char *argv[]) {
 	ext = extract_along_side(test_array_quad1, npoints / 2 - 1, 0, npoints / 2);
 	print_array1d(ext, npoints / 2);
 
-
-	printf("\n Attaching arrays\n");
+	printf("\n Attaching arrays - Right bottom\n");
 	int * res = (int*) malloc(
 			(npoints / 2 + 1) * (npoints / 2 + 1) * sizeof(int));
 	arr_attach_right_bottom(test_array_quad0, ext, ext, 0, res, npoints / 2);
+	print_array(res, npoints / 2 + 1);
+
+	printf("\n Attaching arrays - left bottom\n");
+	res = (int*) malloc((npoints / 2 + 1) * (npoints / 2 + 1) * sizeof(int));
+	arr_attach_left_bottom(test_array_quad0, ext, ext, 0, res, npoints / 2);
+	print_array(res, npoints / 2 + 1);
+
+	printf("\n Attaching arrays - right top\n");
+	res = (int*) malloc((npoints / 2 + 1) * (npoints / 2 + 1) * sizeof(int));
+	arr_attach_right_top(test_array_quad0, ext, ext, 0, res, npoints / 2);
+	print_array(res, npoints / 2 + 1);
+
+	printf("\n Attaching arrays - left top\n");
+	res = (int*) malloc((npoints / 2 + 1) * (npoints / 2 + 1) * sizeof(int));
+	arr_attach_left_top(test_array_quad0, ext, ext, 0, res, npoints / 2);
 	print_array(res, npoints / 2 + 1);
 
 	return 0;

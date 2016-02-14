@@ -39,9 +39,10 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 extern void run_gpu(double *u, double *u0, double *u1, double *pebbles, int n,
 		double h, double end_time, int nthreads);
 
-double * extract_along_down(double *u, double *new, int x, int y, int n);
-double * extract_along_side(double *u, double* new, int x, int y, int n);
+void extract_along_down(double *u, double *new, int x, int y, int n);
+void extract_along_side(double *u, double* new, int x, int y, int n);
 void print_array(double *u, int n);
+void print_array1d(double *u, double n);
 
 int taskId, totaltasks;
 
@@ -149,7 +150,7 @@ int main(int argc, char *argv[]) {
 		MPI_Recv(pebs, narea / totaltasks, MPI_DOUBLE, ROOT, DEFAULT_TAG,
 		MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-		//run_cpu9pt_mpi(u_gpu, u_i0, u_i1, pebs, npoints / 2, h, end_time);
+		run_cpu9pt_mpi(u_gpu, u_i0, u_i1, pebs, npoints / 2, h, end_time);
 
 //		if(taskId == 1)
 //			print_array(u_i0,npoints/2);
@@ -172,6 +173,13 @@ void print_array(double *u, int n) {
 			printf("%lf ", u[i * n + j]);
 		printf("\n");
 	}
+}
+
+void print_array1d(double *u, double n) {
+	int i;
+	for (i = 0; i < n; i++)
+		printf("%lf ", u[i]);
+	printf("\n");
 }
 
 void run_cpu(double *u, double *u0, double *u1, double *pebbles, int n,
@@ -237,7 +245,7 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 	dt = h / 2.;
 
 	int cnt = 1;
-	//Testing for 2 iterations
+	//Testing for 1 iteration
 	while (cnt++ < 2) {
 
 		switch (taskId) {
@@ -282,6 +290,7 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 2, DEFAULT_TAG,
 			MPI_COMM_WORLD);
 
+			print_array1d(send_left_border, n);
 			//print_array(uc, n);
 			break;
 		case 2:
@@ -330,6 +339,9 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 		MPI_Waitall(3, reqs, stats);
 		MPI_Barrier(MPI_COMM_WORLD);
 
+		if (taskId == 1) {
+			print_array1d(rec_left_border, n);
+		}
 //		if (cnt++ == 1)
 //			print_array(uo, n);
 //		evolve9pt(un, uc, uo, pebbles, n, h, dt, t);
@@ -377,20 +389,18 @@ void run_cpu9pt(double *u, double *u0, double *u1, double *pebbles, int n,
 	memcpy(u, un, sizeof(double) * n * n);
 }
 
-double * extract_along_down(double *u, double*new, int x, int y, int n) {
+void extract_along_down(double *u, double* new, int x, int y, int n) {
 	int i, index = 0;
 	for (i = x; i < x + n; i++) {
 		new[index++] = u[i * n + y];
 	}
-	return new;
 }
 
-double * extract_along_side(double *u, double *new, int x, int y, int n) {
+void extract_along_side(double *u, double *new, int x, int y, int n) {
 	int j, index = 0;
 	for (j = y; j < y + n; j++) {
 		new[index++] = u[x * n + j];
 	}
-	return new;
 }
 
 void arr_div(double *u, double *global, int x, int y, int n) {

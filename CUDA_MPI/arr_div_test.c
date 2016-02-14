@@ -23,6 +23,31 @@ void arr_div(int *u, int *global, int x, int y, int n) {
 		}
 }
 
+/**
+ * w is an array of dimension (n+1)*(n+1)
+ */
+void arr_attach_right_bottom(int *u, int * v, int* v1, int cor, int *w, int n) {
+	int i, j;
+	int index = 0;
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < n; j++) {
+			w[i * (n + 1) + j] = u[i*n + j];
+		}
+	}
+
+	//bottom
+	for (j = 0; j < n; j++) {
+		w[n * (n + 1) + j] = v[j];
+	}
+
+	//right
+	for (i = 0; i < n; i++) {
+		w[i * (n + 1) + j] = v[i];
+	}
+
+	w[n*(n+1)+(n+1)] = cor;
+}
+
 void print_array(int *u, int n) {
 	int i, j;
 	for (i = 0; i < n; i++) {
@@ -99,11 +124,19 @@ int main(int argc, char *argv[]) {
 	print_array1d(ext, npoints / 2);
 
 	printf("\nDown border of quad 0\n");
-	ext = extract_along_side(test_array_quad0, npoints/2-1, 0, npoints / 2);
+	ext = extract_along_side(test_array_quad0, npoints / 2 - 1, 0, npoints / 2);
 	print_array1d(ext, npoints / 2);
 
 	printf("\nDown border of quad 1\n");
-	ext = extract_along_side(test_array_quad1, npoints/2-1 , 0, npoints / 2);
+	ext = extract_along_side(test_array_quad1, npoints / 2 - 1, 0, npoints / 2);
 	print_array1d(ext, npoints / 2);
+
+
+	printf("\n Attaching arrays\n");
+	int * res = (int*) malloc(
+			(npoints / 2 + 1) * (npoints / 2 + 1) * sizeof(int));
+	arr_attach_right_bottom(test_array_quad0, ext, ext, 0, res, npoints / 2);
+	print_array(res, npoints / 2 + 1);
+
 	return 0;
 }

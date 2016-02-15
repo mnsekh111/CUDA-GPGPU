@@ -243,7 +243,7 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 	int cnt = 0;
 
 	//Testing for 1 iteration
-	while (cnt++ < 2) {
+	while (1) {
 
 		switch (taskId) {
 		case 0:
@@ -477,8 +477,8 @@ void init(double *u, double *pebbles, int n) {
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < n; j++) {
 			idx = j + i * n;
-//			u[idx] = f(pebbles[idx], 0.0);
-			u[idx] = index++;
+			u[idx] = f(pebbles[idx], 0.0);
+//			u[idx] = index++;
 		}
 	}
 }
@@ -512,9 +512,9 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 	int i, j, idx;
 	double L, R, T, B, LT, RT, LB, RB;
 
-	static int cnt = 0;
-	cnt++;
-	int b = 1;
+//	static int cnt = 0;
+//	cnt++;
+//	int b = 1;
 //	if (taskId == 0 && cnt == b) {
 //		print_array1d(rec_right_border, n);
 //		print_array1d(rec_down_border, n);
@@ -649,9 +649,6 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 						LB = uc[idx + n - 1];
 						RB = uc[idx + n + 1];
 
-						//if(cnt == 1)
-						//printf("%f %f %f %f %f %f %f %f", L,R,T,B,LT,RT,LB,RB);
-
 					}
 
 					un[idx] = 2 * uc[idx] - uo[idx]
@@ -660,11 +657,6 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 											+ 0.25 * (LT + RT + LB + RB)
 											- 5 * uc[idx]) / (h * h)
 											+ f(pebbles[idx], t));
-
-
-					if (cnt == 1)
-						printf("%f", un[idx]);
-					//printf("%f ", un[idx]);
 					//un[idx] = L + R + T + B + LT + RT + LB + RB;
 				}
 
@@ -794,11 +786,6 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 		}
 		break;
 	}
-
-//	if(cnt == b){
-//		print_array(un,n);
-//		printf("----------------\n");
-//	}
 
 }
 

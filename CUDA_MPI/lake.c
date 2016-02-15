@@ -136,8 +136,7 @@ int main(int argc, char *argv[]) {
 		//print_array(u_i0, npoints / 2);
 
 		run_cpu9pt_mpi(u_gpu, u_i0, u_i1, pebs, npoints / 2, h, end_time);
-		print_heatmap("lake_f9_0.dat",u_gpu, npoints/2, h);
-
+		print_heatmap("lake_f9_0.dat", u_gpu, npoints / 2, h);
 
 	} else {
 		MPI_Recv(u_i0, narea / totaltasks, MPI_DOUBLE, ROOT, DEFAULT_TAG,
@@ -150,9 +149,8 @@ int main(int argc, char *argv[]) {
 		run_cpu9pt_mpi(u_gpu, u_i0, u_i1, pebs, npoints / 2, h, end_time);
 
 		char fname[20];
-		snprintf(fname,20,"lake_f9_%d.dat",taskId);
-		print_heatmap(fname, u_gpu, npoints/2, h);
-
+		snprintf(fname, 20, "lake_f9_%d.dat", taskId);
+		print_heatmap(fname, u_gpu, npoints / 2, h);
 
 	}
 
@@ -233,8 +231,8 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 	rec_top_border = (double*) malloc(sizeof(double) * n);
 	rec_down_border = (double*) malloc(sizeof(double) * n);
 
-	MPI_Request reqs[3];
-	MPI_Status stats[3];
+	MPI_Request reqs[6];
+	MPI_Status stats[6];
 
 	memcpy(uo, u0, sizeof(double) * n * n);
 	memcpy(uc, u1, sizeof(double) * n * n);
@@ -243,8 +241,9 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 	dt = h / 2.;
 
 	int cnt = 0;
+
 	//Testing for 1 iteration
-	while (1) {
+	while (cnt++ < 20) {
 
 		switch (taskId) {
 		case 0:
@@ -260,12 +259,12 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 			extract_along_side(uc, send_down_border, n - 1, 0, n);
 			send_cornor = uc[(n - 1) * n + (n - 1)];
 
-			MPI_Send(send_right_border, n, MPI_DOUBLE, 1, DEFAULT_TAG,
-			MPI_COMM_WORLD);
-			MPI_Send(send_down_border, n, MPI_DOUBLE, 2, DEFAULT_TAG,
-			MPI_COMM_WORLD);
-			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 3, DEFAULT_TAG,
-			MPI_COMM_WORLD);
+			MPI_Isend(send_right_border, n, MPI_DOUBLE, 1, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[3]);
+			MPI_Isend(send_down_border, n, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[4]);
+			MPI_Isend(&send_cornor, 1, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[5]);
 			break;
 
 		case 1:
@@ -281,12 +280,12 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 			extract_along_side(uc, send_down_border, n - 1, 0, n);
 			send_cornor = uc[(n - 1) * n + 0];
 
-			MPI_Send(send_left_border, n, MPI_DOUBLE, 0, DEFAULT_TAG,
-			MPI_COMM_WORLD);
-			MPI_Send(send_down_border, n, MPI_DOUBLE, 3, DEFAULT_TAG,
-			MPI_COMM_WORLD);
-			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 2, DEFAULT_TAG,
-			MPI_COMM_WORLD);
+			MPI_Isend(send_left_border, n, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[3]);
+			MPI_Isend(send_down_border, n, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[4]);
+			MPI_Isend(&send_cornor, 1, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[5]);
 
 			//print_array1d(send_left_border, n);
 			//print_array(uc, n);
@@ -304,12 +303,12 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 			extract_along_side(uc, send_top_border, 0, 0, n);
 			send_cornor = uc[0 + n - 1];
 
-			MPI_Send(send_right_border, n, MPI_DOUBLE, 3, DEFAULT_TAG,
-			MPI_COMM_WORLD);
-			MPI_Send(send_top_border, n, MPI_DOUBLE, 0, DEFAULT_TAG,
-			MPI_COMM_WORLD);
-			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 1, DEFAULT_TAG,
-			MPI_COMM_WORLD);
+			MPI_Isend(send_right_border, n, MPI_DOUBLE, 3, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[3]);
+			MPI_Isend(send_top_border, n, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[4]);
+			MPI_Isend(&send_cornor, 1, MPI_DOUBLE, 1, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[5]);
 			break;
 		case 3:
 
@@ -324,21 +323,21 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 			extract_along_side(uc, send_top_border, 0, 0, n);
 			send_cornor = uc[0];
 
-			MPI_Send(send_left_border, n, MPI_DOUBLE, 2, DEFAULT_TAG,
-			MPI_COMM_WORLD);
-			MPI_Send(send_top_border, n, MPI_DOUBLE, 1, DEFAULT_TAG,
-			MPI_COMM_WORLD);
-			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 0, DEFAULT_TAG,
-			MPI_COMM_WORLD);
+			MPI_Isend(send_left_border, n, MPI_DOUBLE, 2, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[3]);
+			MPI_Isend(send_top_border, n, MPI_DOUBLE, 1, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[4]);
+			MPI_Isend(&send_cornor, 1, MPI_DOUBLE, 0, DEFAULT_TAG,
+			MPI_COMM_WORLD,&reqs[5]);
 			break;
 
 		}
 
-		MPI_Waitall(3, reqs, stats);
+		MPI_Waitall(6, reqs, stats);
 		MPI_Barrier(MPI_COMM_WORLD);
 
 		if (taskId == 1) {
-			printf("\n********\n");
+			//printf("\n********\n");
 			//print_array1d(rec_down_border, n);
 		}
 

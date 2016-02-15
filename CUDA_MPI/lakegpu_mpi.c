@@ -147,8 +147,8 @@ extern "C" void run_gpu9pt_mpi(double *u, double *u0, double *u1, double *pebble
 
         /* Start GPU computation timer */
         CUDA_CALL(cudaEventRecord(kstart, 0));
-
-        while (1) {
+        int cnt = 0;
+        while (cnt++<1) {
 
                 //do_transfer(uccpu,n);
                 cudaMemcpy(g_rec_left_border, rec_left_border, sizeof(double) * n,

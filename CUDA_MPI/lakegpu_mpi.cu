@@ -9,10 +9,6 @@
 #define CUDA_CALL( err )     __cudaSafeCall( err, __FILE__, __LINE__ )
 #define CUDA_CHK_ERR() __cudaCheckError(__FILE__,__LINE__)
 
- double * g_rec_left_border;
- double * g_rec_top_border;
- double * g_rec_down_border;
- double * g_rec_right_border;
 
 extern int taskId, totaltasks;
 extern double *rec_right_border, *rec_left_border, *rec_top_border, *rec_down_border;
@@ -81,34 +77,268 @@ __device__ int tpdt_gpu(double *t, double dt, double tf) {
         return 1;
 }
 
+/*
+This is the kernel that performs a quadrant of work assigned to each task
+*/
 __global__ void evolve9ptgpu(double *un, double *uc, double *uo,
                 double *pebbles, int n, double h, double dt, double t,
-                double end_time) {
+                double end_time,int taskId,double rec_cornor,double *g_rec_down_border,double *g_rec_right_border,double *g_rec_left_border,double *g_rec_top_border) {
 
         int gridOffset = (blockIdx.x * gridDim.x + blockIdx.y) * blockDim.x
                         * blockDim.y;
         int blockOffset = threadIdx.x * blockDim.x + threadIdx.y;
         int idx = gridOffset + blockOffset;
+        int i, j;
+        float f = -expf(-1.0 * t) * pebbles[idx];
+	double L, R, T, B, LT, RT, LB, RB;
 
-        if ((blockIdx.x == 0 && threadIdx.x == 0)
-                        || (blockIdx.y == 0 && threadIdx.y == 0)
-                        || (blockIdx.x == gridDim.x - 1 && threadIdx.x == blockDim.x - 1)
-                        || (blockIdx.y == gridDim.y - 1 && threadIdx.y == blockDim.y - 1)) {
-                un[idx] = 0.;
-        } else {
-                un[idx] =
-                                2 * uc[idx] - uo[idx]
-                                                + VSQR * (dt * dt)
-                                                                * ((uc[idx - 1] + uc[idx + 1] + uc[idx - n]
-                                                                        + uc[idx + n]
-                                                                        + 0.25
-                                                                        * (uc[idx - n - 1]
-                                                                        + uc[idx - n + 1]
-                                                                        + uc[idx + n - 1]
-                                                                        + uc[idx + n + 1])
-                                                                        - 5 * uc[idx]) / (h * h)
-                                                                        + f_gpu(pebbles[idx], t));
-        }
+	// Do different operations for different task id.
+		switch (taskId) {
+	case 0:
+		for (i = 0; i < n; i++) {
+			for (j = 0; j < n; j++) {
+				idx = j + i * n;
+
+				if (i == 0 || j == 0) {
+					un[idx] = 0.;
+
+				} else {
+					if (i == n - 1 && j == n - 1) {
+
+						L = uc[idx - 1];
+						R = g_rec_right_border[i];
+						T = uc[idx - n];
+						B = g_rec_down_border[j];
+						LT = uc[idx - n - 1];
+						RT = g_rec_right_border[i - 1];
+						LB = g_rec_down_border[j - 1];
+						RB = rec_cornor;
+					} else if (i == n - 1) {
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = g_rec_down_border[j];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = g_rec_down_border[j - 1];
+						RB = g_rec_down_border[j + 1];
+					} else if (j == n - 1) {
+						L = uc[idx - 1];
+						R = g_rec_right_border[i];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = g_rec_right_border[i - 1];
+						LB = uc[idx + n - 1];
+						RB = g_rec_right_border[i + 1];
+					} else {
+
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					}
+
+					un[idx] = 2 * uc[idx] - uo[idx]
+							+ VSQR * (dt * dt)
+									* ((L + R + T + B
+											+ 0.25 * (LT + RT + LB + RB)
+											- 5 * uc[idx]) / (h * h)
+											+ f);
+
+//                                      un[idx] = L + R + T + B + LT + RT + LB + RB;
+				}
+
+			}
+		}
+		break;
+	case 1:
+		for (i = 0; i < n; i++) {
+			for (j = 0; j < n; j++) {
+				idx = j + i * n;
+
+				if (i == 0 || j == n - 1) {
+					un[idx] = 0.;
+
+				} else {
+					if (i == n - 1 && j == 0) {
+						L = g_rec_left_border[i];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = g_rec_down_border[j];
+						LT = g_rec_left_border[i - 1];
+						RT = uc[idx - n + 1];
+						LB = rec_cornor;
+						RB = g_rec_down_border[j + 1];
+					} else if (i == n - 1) {
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = g_rec_down_border[j];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = g_rec_down_border[j - 1];
+						RB = g_rec_down_border[j + 1];
+					} else if (j == 0) {
+						L = g_rec_left_border[i];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = g_rec_left_border[i - 1];
+						RT = uc[idx - n + 1];
+						LB = g_rec_left_border[i + 1];
+						RB = uc[idx + n + 1];
+					} else {
+
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+
+					}
+
+					un[idx] = 2 * uc[idx] - uo[idx]
+							+ VSQR * (dt * dt)
+									* ((L + R + T + B
+											+ 0.25 * (LT + RT + LB + RB)
+											- 5 * uc[idx]) / (h * h)
+											+ f);
+					//un[idx] = L + R + T + B + LT + RT + LB + RB;
+				}
+
+			}
+		}
+		break;
+	case 2:
+		for (i = 0; i < n; i++) {
+			for (j = 0; j < n; j++) {
+				idx = j + i * n;
+
+				if (i == n - 1 || j == 0) {
+					un[idx] = 0.;
+
+				} else {
+					if (i == 0 && j == n - 1) {
+
+						L = uc[idx - 1];
+						R =g_rec_right_border[i];
+						T = g_rec_top_border[j];
+						B = uc[idx + n];
+						LT = g_rec_top_border[j - 1];
+						RT = rec_cornor;
+						LB = uc[idx + n - 1];
+						RB = g_rec_right_border[i + 1];
+					} else if (i == 0) {
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = g_rec_top_border[j];
+						B = uc[idx + n];
+						LT = g_rec_top_border[j - 1];
+						RT = g_rec_top_border[j + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					} else if (j == n - 1) {
+						L = uc[idx - 1];
+						R = g_rec_right_border[i];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = g_rec_right_border[i - 1];
+						LB = uc[idx + n - 1];
+						RB = g_rec_right_border[i + 1];
+					} else {
+
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					}
+
+					un[idx] = 2 * uc[idx] - uo[idx]
+							+ VSQR * (dt * dt)
+									* ((L + R + T + B
+											+ 0.25 * (LT + RT + LB + RB)
+											- 5 * uc[idx]) / (h * h)
+											+ f);
+//                                      un[idx] = L + R + T + B + LT + RT + LB + RB;
+				}
+
+			}
+		}
+
+		break;
+	case 3:
+		for (i = 0; i < n; i++) {
+			for (j = 0; j < n; j++) {
+				idx = j + i * n;
+
+				if (i == n - 1 || j == n - 1) {
+					un[idx] = 0.;
+
+				} else {
+					if (i == 0 && j == 0) {
+						L = g_rec_left_border[i];
+						R = uc[idx + 1];
+						T = g_rec_top_border[j];
+						B = uc[idx + n];
+						LT = rec_cornor;
+						RT = g_rec_top_border[j + 1];
+						LB = g_rec_left_border[i + 1];
+						RB = uc[idx + n + 1];
+					} else if (i == 0) {
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = g_rec_top_border[j];
+						B = uc[idx + n];
+						LT = g_rec_top_border[j - 1];
+						RT = g_rec_top_border[j + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					} else if (j == 0) {
+						L = g_rec_left_border[i];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = g_rec_left_border[i - 1];
+						RT = uc[idx - n + 1];
+						LB = g_rec_left_border[i + 1];
+						RB = uc[idx + n + 1];
+					} else {
+
+						L = uc[idx - 1];
+						R = uc[idx + 1];
+						T = uc[idx - n];
+						B = uc[idx + n];
+						LT = uc[idx - n - 1];
+						RT = uc[idx - n + 1];
+						LB = uc[idx + n - 1];
+						RB = uc[idx + n + 1];
+					}
+					un[idx] = 2 * uc[idx] - uo[idx]
+					+ VSQR * (dt * dt)
+							* ((L + R + T + B + 0.25 * (LT + RT + LB + RB)
+									- 5 * uc[idx]) / (h * h)
+									+ f);
+					//un[idx] = L + R + T + B + LT + RT + LB + RB;
+				}
+
+			}
+		}
+		break;
+	}
+
 
 }
 
@@ -121,7 +351,10 @@ extern "C" void run_gpu9pt_mpi(double *u, double *u0, double *u1, double *pebble
         double t, dt;
 
         double *uccpu = (double*) malloc(sizeof(double) * n * n);
-
+		double * g_rec_left_border;
+		double * g_rec_top_border;
+		double * g_rec_down_border;
+		double * g_rec_right_border;
 
         /* Set up device timers */
         CUDA_CALL(cudaSetDevice(0));
@@ -148,7 +381,13 @@ extern "C" void run_gpu9pt_mpi(double *u, double *u0, double *u1, double *pebble
         /* Start GPU computation timer */
         CUDA_CALL(cudaEventRecord(kstart, 0));
 
-        while (1) {
+		int cnt = 0;
+		
+		/**
+			The loop is required to run only for 1 time in the
+			question
+		*/
+        while (cnt++ < 1) {
 
                 do_transfer(uccpu,n);
                 cudaMemcpy(g_rec_left_border, rec_left_border, sizeof(double) * n,
@@ -161,8 +400,9 @@ extern "C" void run_gpu9pt_mpi(double *u, double *u0, double *u1, double *pebble
                                 cudaMemcpyHostToDevice);
 
 
-                evolve9ptgpu<<<grid_dim, block_dim>>>(un, uc, uo, pb, n, h, dt, t,
-                                end_time);
+
+                evolve9ptgpu<<<grid_dim, block_dim>>>(un, uc, uo, pb, n/4, h, dt, t,
+                                end_time,taskId,rec_cornor,g_rec_down_border,g_rec_right_border,g_rec_left_border,g_rec_top_border);
 
                 CUDA_CALL(
                                 cudaMemcpy(uo, uc, sizeof(double) * n * n,

@@ -134,15 +134,10 @@ int main(int argc, char *argv[]) {
 		arr_div(pebs, global_pebs, 0, 0, npoints);
 
 		//print_array(u_i0, npoints / 2);
-		print_heatmap("lake_i9.dat", u_i0, npoints, h);
 
-		gettimeofday(&gpu_start, NULL);
 		run_cpu9pt_mpi(u_gpu, u_i0, u_i1, pebs, npoints / 2, h, end_time);
-		gettimeofday(&gpu_end, NULL);
+		print_heatmap("lake_f9_0.dat",u_gpu, npoints/2, h);
 
-		elapsed_gpu = ((gpu_end.tv_sec + gpu_end.tv_usec * 1e-6)
-				- (gpu_start.tv_sec + gpu_start.tv_usec * 1e-6));
-		printf("CPU took %f seconds\n", elapsed_gpu);
 
 	} else {
 		MPI_Recv(u_i0, narea / totaltasks, MPI_DOUBLE, ROOT, DEFAULT_TAG,
@@ -154,11 +149,14 @@ int main(int argc, char *argv[]) {
 
 		run_cpu9pt_mpi(u_gpu, u_i0, u_i1, pebs, npoints / 2, h, end_time);
 
-//		if(taskId == 1)
-//			print_array(u_i0,npoints/2);
+		char fname[20];
+		snprintf(fname,20,"lake_f9_%d.dat",taskId);
+		print_heatmap(fname, u_gpu, npoints/2, h);
+
 
 	}
 
+	MPI_Barrier(MPI_COMM_WORLD);
 	free(u_i0);
 	free(u_i1);
 	free(pebs);
@@ -244,9 +242,9 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 	t = 0.;
 	dt = h / 2.;
 
-	int cnt = 1;
+	int cnt = 0;
 	//Testing for 1 iteration
-	while (cnt++ < 2) {
+	while (1) {
 
 		switch (taskId) {
 		case 0:
@@ -290,7 +288,7 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 			MPI_Send(&send_cornor, 1, MPI_DOUBLE, 2, DEFAULT_TAG,
 			MPI_COMM_WORLD);
 
-			print_array1d(send_left_border, n);
+			//print_array1d(send_left_border, n);
 			//print_array(uc, n);
 			break;
 		case 2:
@@ -340,11 +338,16 @@ void run_cpu9pt_mpi(double *u, double *u0, double *u1, double *pebbles, int n,
 		MPI_Barrier(MPI_COMM_WORLD);
 
 		if (taskId == 1) {
-			print_array1d(rec_left_border, n);
+			printf("\n********\n");
+			//print_array1d(rec_down_border, n);
 		}
 
 		evolve9pt(un, uc, uo, pebbles, n, h, dt, t);
-
+//		if (taskId == 3) {
+//			//print_array1d(rec_top_border, n);
+//			printf("\n------------\n");
+//			print_array(un, n);
+//		}
 //		if (cnt++ == 1)
 //			print_array(uo, n);
 //		evolve9pt(un, uc, uo, pebbles, n, h, dt, t);
@@ -449,8 +452,8 @@ void init(double *u, double *pebbles, int n) {
 	for (i = 0; i < n; i++) {
 		for (j = 0; j < n; j++) {
 			idx = j + i * n;
-//			u[idx] = f(pebbles[idx], 0.0);
-			u[idx] = index++;
+			u[idx] = f(pebbles[idx], 0.0);
+//			u[idx] = index++;
 		}
 	}
 }
@@ -540,6 +543,8 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 											+ 0.25 * (LT + RT + LB + RB)
 											- 5 * uc[idx]) / (h * h)
 											+ f(pebbles[idx], t));
+
+//					un[idx] = L + R + T + B + LT + RT + LB + RB;
 				}
 
 			}
@@ -599,6 +604,7 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 											+ 0.25 * (LT + RT + LB + RB)
 											- 5 * uc[idx]) / (h * h)
 											+ f(pebbles[idx], t));
+					//un[idx] = L + R + T + B + LT + RT + LB + RB;
 				}
 
 			}
@@ -659,6 +665,7 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 											+ 0.25 * (LT + RT + LB + RB)
 											- 5 * uc[idx]) / (h * h)
 											+ f(pebbles[idx], t));
+//					un[idx] = L + R + T + B + LT + RT + LB + RB;
 				}
 
 			}
@@ -719,6 +726,7 @@ void evolve9pt(double *un, double *uc, double *uo, double *pebbles, int n,
 											+ 0.25 * (LT + RT + LB + RB)
 											- 5 * uc[idx]) / (h * h)
 											+ f(pebbles[idx], t));
+					//un[idx] = L + R + T + B + LT + RT + LB + RB;
 				}
 
 			}

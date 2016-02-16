@@ -1,0 +1,69 @@
+ 
+In order to test the CPU+MPI please refer to 
+
+int main(int argc, char *argv[]);
+	The initial array division occurs here
+
+void run_cpu9pt_mpi
+	The border exchange code is implemented here
+
+void evolve9pt
+	Bound checking and calculation of cuda is here
+
+
+mpicc -g -o lake.c lake
+mpirun -np lake 128 5 1.0 8
+
+In order to test the GPU+MPI please refer to 
+
+int main(int argc, char *argv[]);
+	The initial array division occurs here
+
+void run_gpu9pt_mpi
+	The border exchange code is implemented here
+
+The four files that get genereated are
+
+lake_f9_0.dat
+lake_f9_1.dat
+lake_f9_2.dat
+lake_f9_3.dat
+
+
+
+
+Inorder to compile just make.
+
+Then you can run it with the configuration specified in the question.
+
+Answers:
+For the first two questions refer to the read me in v1&V2 folder
+ 
+Integrating CUDA and MPI involves more sophisticated code.  What problems did you encounter?  How did you fix them?
+
+The most trickiest case is the keep transferring the data between the device and the host for every iteration. We will not be able to access these general variables inside the kernel function as the 
+kernel has only access to the memory that is passed through function call or the one that is marked as __device__. I was not easily able to port the code from CPU to GPU because of this complication.
+We have to write a function called doTransfer which is for exchanging the data computed during each iteration with the other nodes. So there is a lot of transfer of data and exchange of buffers and performs very poorly when run with 
+sufficient low grid size. Here are some of the results I got.
+
+mpirun -np 4 lake 128 5 1.0 8               
+Running lake with (128 x 128) grid, until 1.000000, with 8 threads
+CPU took 143.12 seconds
+MPI took 1.141 seconds
+
+
+mpirun -np 4 lake 512 10 1.0 8 
+Running lake with (512 x 512) grid, until 1.000000, with 8 threads
+CPU took 633.706 seconds
+MPI took 7.336 seconds
+
+
+
+Then I tried to change the number of thread and this was the results
+The problem scales well with increasing the number of threads .esp for GPU did not improve much but the CPU did.
+Also changed the timing and the performance was good
+
+mpirun -np 4 lake 512 10 1.0 16
+Running lake with (512 x 512) grid, until 1.000000, with 16 threads
+CPU took 122.11 seconds
+MPI took 7.374075 seconds
